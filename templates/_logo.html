@@ -1,0 +1,1 @@
+{% load static %}{% if brand.LOGO %}<img src="{% static brand.LOGO %}" alt="{{ brand.NAME }}"{% if pied %} class="footer-logo mb-2"{% endif %}>{% else %}<span class="logo-monogramme{% if pied %} logo-monogramme-pied mb-2{% endif %}"><span class="logo-lettre">{{ brand.INITIALE }}</span><span class="logo-nom">{{ brand.NAME }}</span></span>{% endif %}

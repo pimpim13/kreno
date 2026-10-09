@@ -1,5 +1,6 @@
 :root {
   --ps-black: #201e1f;
+  --ps-black-rgb: 32, 30, 31;
   --ps-white: #ffffff;
   --ps-gray-light: #f1f1f2;
   --ps-gray: #6c6c6c;
@@ -49,9 +50,40 @@ h1, h2, h3, .display-font {
   height: 40px;
 }
 
-.footer-garage {
+.footer-marque {
   background-color: var(--ps-black);
   color: var(--ps-gray-light);
+}
+
+.logo-monogramme {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--ps-white);
+  font-family: 'Poppins', sans-serif;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.logo-lettre {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.6rem;
+  background-color: var(--ps-green);
+  color: var(--ps-black);
+  font-size: 1.4rem;
+}
+
+.logo-nom {
+  font-size: 1.15rem;
+}
+
+.logo-monogramme-pied {
+  display: flex;
+  justify-content: center;
 }
 
 .footer-logo {
@@ -201,7 +233,7 @@ h1, h2, h3, .display-font {
   align-items: center;
   padding: 0.35rem 0.75rem;
   border-radius: var(--bs-border-radius-pill);
-  background-color: rgba(32, 30, 31, 0.08);
+  background-color: rgba(var(--ps-black-rgb), 0.08);
   color: var(--ps-black);
   font-weight: 600;
   font-size: 0.8rem;
@@ -214,7 +246,7 @@ h1, h2, h3, .display-font {
 }
 
 .offre-actions-gestion {
-  border-top: 1px solid rgba(32, 30, 31, 0.12);
+  border-top: 1px solid rgba(var(--ps-black-rgb), 0.12);
 }
 
 .nav-pills .nav-link {
@@ -394,7 +426,7 @@ h1, h2, h3, .display-font {
 
 .page-fond-calendrier {
   background-color: var(--ps-black);
-  background-image: linear-gradient(rgba(32, 30, 31, 0.3), rgba(32, 30, 31, 0.45)), url('../img/calendrier-fond.jpg');
+  background-image: linear-gradient(rgba(var(--ps-black-rgb), 0.3), rgba(var(--ps-black-rgb), 0.45)), var(--fond-calendrier);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -410,7 +442,7 @@ h1, h2, h3, .display-font {
 
 .page-fond-accueil {
   background-color: var(--ps-black);
-  background-image: linear-gradient(180deg, rgba(32, 30, 31, 0.35), rgba(32, 30, 31, 0.65)), url('../img/hero-fond.jpg');
+  background-image: linear-gradient(180deg, rgba(var(--ps-black-rgb), 0.35), rgba(var(--ps-black-rgb), 0.65)), var(--fond-accueil);
   background-size: cover;
   background-position: center 20%;
   background-repeat: no-repeat;
@@ -512,7 +544,7 @@ h1, h2, h3, .display-font {
   border: none;
   border-radius: 50%;
   padding: 0;
-  background-color: rgba(32, 30, 31, 0.25);
+  background-color: rgba(var(--ps-black-rgb), 0.25);
   cursor: pointer;
 }
 

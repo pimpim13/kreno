@@ -1,157 +1,123 @@
-# Création d'une web App de gestion de salle de sport — le Garage
+# Kreno — application de réservation de créneaux collectifs
 
-Nom de la salle : **le Garage** (coaching : Loïc Fitness Coaching).
+**Kreno** est la version générique et adaptable de l'application développée pour la salle de sport **le Garage** (coaching : Loïc Fitness Coaching). Le code est issu d'un clone du dépôt `pimpim13/garage` ; il ne faut **jamais pousser vers ce dépôt** (le remote `garage` est volontairement bloqué).
+
+## Cible et modèle de diffusion
+
+- **Cible** : toute activité à réservation de créneaux collectifs (salle de sport, studio de yoga/pilates, cours de danse, escalade, arts martiaux, ateliers, etc.), et pas seulement les salles de sport.
+- **Hébergement** : **une instance par client, hébergée chez lui**. Nous n'hébergeons qu'en **test** et en **pré-production**. Pas de multi-tenant : chaque instance a sa propre base, son propre `.env`, son propre thème. La livraison doit donc être simple à installer et à mettre à jour par le client (voir chantier 5).
+- **Client n°1 : le Garage.** Ses réglages par défaut doivent **reproduire exactement le comportement actuel**. Les **369 tests existants doivent rester verts** à chaque étape : c'est le filet de sécurité de toute la généralisation. Toute nouvelle option se code avec une valeur par défaut égale au comportement historique du Garage, et un nouveau client ne fait que surcharger ces valeurs.
+
+## Principe directeur de la généralisation
+
+Ne rien casser, ne rien dupliquer : on remplace les valeurs codées en dur (nom, couleurs, mots, seuils, fonctionnalités) par des **réglages**, dont les défauts sont ceux du Garage. Une instance se configure par `.env` et/ou par un modèle de réglages en base éditable par le gestionnaire, jamais en modifiant le code.
+
+## Ordre des chantiers
+
+1. **Identité et thème** — nom de l'organisation, logo, icône, couleurs, textes de la page d'accueil, nom d'expéditeur des emails, etc., configurables par instance. Défaut = identité du Garage.
+2. **Vocabulaire configurable** — les termes métier (séance, coach, membre, carnet, joker, salle…) deviennent des libellés réglables (singulier/pluriel, genre si nécessaire). Défaut = vocabulaire actuel.
+3. **Règles métier réglables** — les seuils et comportements aujourd'hui fixes deviennent des paramètres (voir « Règles métier »).
+4. **Modules activables** — chaque fonctionnalité optionnelle peut être activée ou désactivée par instance (voir « Modules »).
+5. **Livraison Docker** — image et `docker-compose` pour installer une instance chez le client, avec volumes pour la base et les médias, sauvegardes (`scripts/backup_db.sh`, `docs/sauvegardes.md`), mise à jour documentée.
+6. **Démo** — instance de démonstration avec données fictives et réinitialisables, pour présenter l'application à des prospects.
+7. **Paiement en ligne** — intégration d'un prestataire (ex. Stripe Checkout) une fois le reste stabilisé (voir « Paiement »).
+
+Chaque chantier se livre en étapes courtes et testées ; on ne démarre le suivant que lorsque les tests passent.
 
 ## Stack technique
 
 - Langage : **Python**, framework **Django 5.2**, **Bootstrap 5** (via django-crispy-forms)
 - Application **responsive**, utilisable sur smartphone
-- Dépôt GitHub : `pimpim13/garage`
-- Configuration sensible (clé secrète Django, hosts autorisés, identifiants ntfy.sh) isolée dans un fichier `.env` local (non versionné, voir `.env.example` pour la liste des variables attendues)
+- Dépôt GitHub : `pimpim13/kreno` (remote `origin`)
+- Applications Django : `accounts`, `actualites`, `bookings`, `notifications`, `offers`, `payments`, `purchases`, `scheduling` (dans `apps/`), configuration dans `config/`
+- Configuration sensible et spécifique à l'instance (clé secrète Django, hosts autorisés, identifiants ntfy.sh, SMTP, coordonnées de paiement) isolée dans un fichier `.env` local non versionné ; la liste des variables attendues est dans `.env.example`
+- Documentation d'architecture : `docs/architecture/`
 
-## Profils utilisateurs
+## Règles métier de référence (comportement du Garage = valeurs par défaut)
+
+Les sections suivantes décrivent le comportement actuel, qui sert de **spécification de non-régression**. Les valeurs entre « défaut » sont celles que le chantier 3 rendra réglables.
+
+### Profils utilisateurs
 
 - **Administrateur** (super utilisateur)
-- **Coach gestionnaire** — a tous les droits de gestion actuels (ex-« Gestionnaire »)
-- **Coach** — a les mêmes droits qu'un Membre, à l'exception de la possibilité de marquer un membre inscrit comme non présent à une séance
+- **Gestionnaire** (« Coach gestionnaire » chez le Garage) — a tous les droits de gestion
+- **Animateur** (« Coach » chez le Garage) — mêmes droits qu'un Membre, sauf la possibilité de marquer un membre inscrit comme non présent à une séance
 - **Membre**
 
-Un « coach » au sens animateur d'une séance peut être soit un Coach gestionnaire, soit un Coach simple (champ `coach` de la séance). L'Admin n'anime pas de séance et n'apparaît pas dans la liste des coachs proposés.
+L'animateur d'une séance (champ `coach`) peut être un Gestionnaire ou un Animateur simple. L'Admin n'anime pas de séance et n'apparaît pas dans la liste des animateurs proposés.
+
+### Calendrier et ouverture des inscriptions
+
+- Calendrier hebdomadaire avec navigation avant/arrière, vue journalière, vue par séance ; depuis cette vue le membre s'inscrit ou se désinscrit ; affichage des participants inscrits et de l'animateur
+- Nombre maximum de participants fixé par le créateur de la séance ; **modèles de séance type** disponibles
+- Les inscriptions n'ouvrent qu'à partir du **mercredi de la semaine précédant** celle de la séance (défaut) ; avant, la séance est visible mais ni inscription ni liste d'attente. Les membres sont notifiés à l'**ouverture des inscriptions**, pas à la création de la séance
+- **Annulation** par le gestionnaire/admin : usage recommandé sous **4 participants** (défaut, règle d'usage non vérifiée techniquement) ; inscrits notifiés (push + email), crédit restauré sans impact sur les jokers
+
+### Crédit de séances, offres et achats
+
+- Le catalogue d'**offres** est évolutif : le gestionnaire/admin crée, modifie, supprime depuis `/offres/` (suppression refusée si des achats y sont rattachés ; désactivation recommandée)
+- Catalogue du Garage (4 offres de type carnet) : **1 séance** 10 € (sans prolongation de péremption) ; **10 + 1 offerte** 100 € (+3 mois) ; **20 + 3 offertes** 200 € (+6 mois) ; **25 + 5 offertes** 250 € (+6 mois)
+- Restent à créer comme offres à part entière : une offre **famille** et des offres **personnalisées** (2 au début)
+- Chaque achat (modèle `Achat`, lié à l'offre) **prolonge** la péremption globale du solde de la durée de l'offre, à partir de la péremption existante si future, sinon d'aujourd'hui ; prolongeable manuellement (ex. blessure)
+- Sur la fiche membre : enregistrement d'un achat depuis le catalogue (prix modifiable pour une remise), boutons **+1 / −1** pour corrections
+- Indicateur de solde (fiche séance et liste des membres) : **vert** solde positif ; **orange** solde nul, ou négatif sous la tolérance ; **rouge** tolérance négative atteinte
+- **Tolérance de solde négatif** (défaut **0**) fixée par membre, ou par famille si rattaché
+
+### Familles
+
+Un membre peut appartenir à une **famille** : le crédit est **partagé** (un seul pool) et la tolérance négative est définie au niveau de la famille, identique pour tous ses membres.
+
+### Jokers
+
+Un membre peut recevoir un ou plusieurs jokers du gestionnaire/admin, à sa discrétion.
+
+### Inscription, désinscription, liste d'attente
+
+- Inscription/désinscription horodatées ; le crédit est décompté à l'inscription
+- **Désinscription tardive** (échéance définie par le créateur de la séance) : un joker est consommé et le crédit recrédité ; sans joker, la séance reste décomptée
+- **Liste d'attente** quand la séance est complète ; en cas de désistement, le premier de la file est inscrit automatiquement **uniquement si la séance a lieu dans plus de 24 h** (défaut) ; il est alerté par push ; une fois promu, il est un inscrit à part entière (règle de désinscription tardive incluse)
+- **Permutation** vers une autre séance du jour sans consommer de joker
+
+### Gestion des membres
+
+- Création par le gestionnaire/admin (nom, prénom, email obligatoire, téléphone, tolérance), **sans mot de passe initial** : email avec lien sécurisé de définition du mot de passe
+- **Désactivation** réversible (connexion bloquée, historique conservé)
+- **Suppression définitive** possible ; avertissement si activité réelle (achats, inscriptions, séances animées), avec bouton « Forcer la suppression » (cascade)
+- Un membre ne peut s'inscrire/désinscrire que lui-même ; admin et gestionnaire ont tous les droits
+
+### Notifications
+
+Deux canaux, réglables par chaque utilisateur dans l'onglet « Notifications » :
+
+- **Email** (activable par type) : ouverture des inscriptions, annulation de séance ; autres types à ajouter au fil de l'eau. Mot de passe oublié et définition du mot de passe sont **toujours envoyés**
+- **Push ntfy.sh** : canal partagé membres (ouverture, annulation) ; canal **individuel** aléatoire pour chaque animateur/gestionnaire/admin (inscription, désinscription, promotion depuis la liste d'attente, séance complète). Un animateur simple n'est notifié que pour ses séances ; gestionnaire/admin peuvent suivre d'autres animateurs
+
+### Actualités
+
+Bandeau carrousel géré depuis `/actualites/` par le gestionnaire/admin : texte (200 caractères max), dates de début/fin, **3 actualités actives maximum** (défaut), bouton optionnel vers une page de l'app (Calendrier, Offres, Notifications, Solde). Affiché en bas de la page d'accueil (visiteurs, sans croix) et au-dessus du calendrier (connectés, avec croix mémorisée dans le navigateur).
+
+## Règles métier réglables (chantier 3)
+
+À rendre paramétrables par instance, défaut = valeur du Garage : jour et semaine d'ouverture des inscriptions, délai de désinscription tardive (par séance et défaut global), seuil des 24 h pour la promotion automatique, seuil minimum de participants à l'annulation, tolérance négative par défaut, nombre maximum d'actualités actives, durées de validité des offres.
+
+## Modules activables (chantier 4)
+
+Chaque module doit pouvoir être désactivé sans casser le reste (menus, URLs, notifications et tests inclus) ; tous sont **activés par défaut** pour conserver le comportement du Garage. Candidats : jokers, familles, liste d'attente, permutation de séances, actualités, notifications push ntfy, notifications email, offres/carnets, paiement manuel, paiement en ligne (à venir).
 
 ## Paiement
 
-L'application doit être prête à intégrer un système de paiement en ligne (ex. Stripe Checkout) ; pas encore implémenté.
-
-**Première étape manuelle (implémentée)** : quand un membre consulte une séance ouverte aux inscriptions mais que son crédit est insuffisant pour réserver (ou pour rejoindre la liste d'attente), une carte remplace le bouton habituel et l'invite à régler son prochain carnet par **Wero** auprès du coach gestionnaire qui réceptionne les paiements (nom et téléphone configurés via `.env`, boutons "Copier" comme pour les canaux ntfy). Le gestionnaire crédite ensuite manuellement le compte une fois le paiement reçu (ajustement `+10`/`+1` existant sur la fiche membre) ; il n'y a pas encore d'intégration API Wero (pas disponible pour les marchands français à ce jour).
-
-## Offres
-
-Le catalogue des offres est **évolutif** : le coach gestionnaire (ou l'admin) peut créer, modifier ou supprimer une offre directement depuis l'application (boutons visibles sur la page `/offres/` pour eux uniquement — suppression refusée si des achats y sont déjà rattachés, la désactivation étant alors recommandée à la place). Catalogue actuel (4 offres de type carnet, page publique `/offres/`) :
-
-- **1 séance** — 10 € — achat à l'unité, ne prolonge pas la date de péremption du solde
-- **10 séances + 1 offerte** (11 au total) — 100 € — prolonge la péremption du solde de **3 mois**
-- **20 séances + 3 offertes** (23 au total) — 200 € — prolonge la péremption du solde de **6 mois**
-- **25 séances + 5 offertes** (30 au total) — 250 € — prolonge la péremption du solde de **6 mois**
-
-Restent à implémenter comme offres à part entière (pour l'instant seul le mécanisme du pool partagé existe, voir « Familles ») :
-- Une offre **famille**
-- Des offres **personnalisées** (en prévoir 2 au début)
-
-## Familles
-
-Un membre peut être rattaché à une **famille**, qui regroupe plusieurs membres liés (ex. un foyer) :
-
-- Le crédit de séances de l'offre famille est **partagé** entre tous les membres de la famille : une séance est décomptée du même pool, quel que soit le membre lié qui s'inscrit.
-- La **tolérance de séances négatives** est définie au niveau de la famille (pas individuellement par membre) et s'applique de la même façon à tous les membres liés, pour éviter toute ambiguïté entre membres d'une même famille.
-
-## Calendrier des séances
-
-- Exposition d'un calendrier des séances
-- Nombre maximum de participants fixé par le créateur de la séance (gestionnaire/coach ou admin)
-- Des **modèles de séance type** disponibles
-
-### Ouverture des inscriptions
-
-- Les inscriptions à une séance n'ouvrent qu'à partir du **mercredi de la semaine précédant** celle de la séance
-- Avant cette date, la séance est visible sur le calendrier mais l'inscription (et la liste d'attente) n'est pas possible
-- Les membres sont notifiés à l'**ouverture des inscriptions** (et non à la création de la séance par le gestionnaire, qui peut avoir lieu bien avant)
-
-### Vue calendrier
-
-- Représentation graphique de l'occupation des séances, en vue **calendrier hebdomadaire**
-- Navigation en avant / en arrière
-- Accès à une **vue journalière** et une **vue par séance**
-- Depuis cette vue, le membre peut s'inscrire ou se désinscrire
-- Affichage de la liste des participants déjà inscrits ainsi que du coach de la séance
-
-### Annulation d'une séance par le gestionnaire
-
-- Si une séance n'a pas atteint un minimum de **4 participants** inscrits, le gestionnaire (ou l'admin) peut l'annuler
-- Les membres inscrits sont notifiés par push ntfy (canal partagé membres) et par email (désactivable individuellement dans Notifications) — le seuil de 4 participants minimum n'est pour l'instant pas vérifié techniquement avant suppression, c'est une règle d'usage
-- Leur crédit de séance est restauré (recrédité), sans impact sur leurs jokers
-
-## Gestion des séances achetées
-
-- Gestion de l'achat de séances et du nombre de séances restantes disponibles (pour l'instant géré par l'admin ou le gestionnaire)
-- Tant que le paiement en ligne n'est pas implémenté, c'est le gestionnaire ou l'admin qui met à jour :
-  - les informations de paiement
-  - le nombre de séances achetées
-- Les dates d'achat de séances sont suivies par membre (modèle `Achat`, lié à l'offre choisie)
-- Chaque achat (hors achat à l'unité) **prolonge** la date de péremption globale du solde de la durée de validité propre à l'offre achetée (3 ou 6 mois selon l'offre, voir « Offres ») — à partir de la péremption existante si elle est encore dans le futur, sinon à partir d'aujourd'hui. Prolongeable aussi manuellement à la discrétion du gestionnaire (ex. en cas de blessure)
-- Sur la fiche membre, le gestionnaire/admin choisit une offre dans le catalogue pour enregistrer un achat (nombre de séances et durée de validité appliqués automatiquement ; prix payé modifiable pour une remise ponctuelle), et dispose aussi de boutons **+1** / **−1** pour des corrections manuelles ponctuelles
-- Un indicateur visuel signale l'état du solde de chaque membre par rapport à sa tolérance négative (sa propre tolérance, ou celle de sa famille le cas échéant), à la fois sur la fiche séance et sur la liste des membres :
-  - **Vert** : solde positif
-  - **Orange** : solde à zéro, ou négatif sans avoir atteint la tolérance
-  - **Rouge** : tolérance négative atteinte
-
-## Jokers
-
-- Chaque membre peut obtenir un ou plusieurs jokers de la part du gestionnaire (ou admin)
-- L'obtention d'un joker supplémentaire est à la discrétion du gestionnaire
-
-## Inscription / désinscription
-
-- Les membres peuvent s'inscrire et se désinscrire d'une séance
-- Chaque action est horodatée
-- Le nombre de séances disponibles est décrémenté à l'inscription
-- L'admin ou le gestionnaire fixe une tolérance de nombre de séances négatif (par défaut à **0**), individuellement par membre, ou au niveau de la famille si le membre y est rattaché
-
-### Règle de désinscription tardive
-
-- Si un membre se désinscrit à une échéance trop proche (définie par le créateur de la séance) :
-  - un **joker** lui est décompté
-  - le nombre de séances est recrédité
-- Si aucun joker n'est disponible, la séance est alors décomptée du nombre de séances restantes
-
-### Liste d'attente
-
-- Quand une séance est complète, un membre peut se positionner en **liste d'attente**
-- En cas de désistement, le membre le plus haut dans la file est **automatiquement inscrit** — mais uniquement si la séance a lieu dans **plus de 24 h** ; passé ce délai, un désistement ne déclenche plus de promotion automatique
-- Il est alerté par notification push (ntfy, canal partagé membres)
-- Une fois inscrit automatiquement, il devient un membre inscrit à part entière : les règles communes s'appliquent, y compris la règle de désinscription tardive — s'il ne peut plus assister, il doit se désinscrire dans les délais, sous peine d'entamer son crédit joker
-
-## Gestion des membres
-
-- Le gestionnaire ou l'admin peut créer un compte membre (nom, prénom, email — obligatoire —, téléphone, tolérance). Aucun mot de passe initial à saisir : le compte est créé sans mot de passe utilisable, et un email est envoyé au membre avec un lien sécurisé pour qu'il définisse lui-même son mot de passe
-- Le gestionnaire ou l'admin peut **désactiver** un membre plutôt que le supprimer : la connexion est bloquée mais son historique (inscriptions, achats, mouvements) est conservé ; la désactivation est réversible
-- Le gestionnaire ou l'admin peut aussi **supprimer définitivement** un compte (doublon, erreur de saisie à la création...). Si le compte a une activité réelle (achats, inscriptions, séances animées), un avertissement le déconseille et recommande la désactivation à la place, mais la décision finale reste au gestionnaire : un bouton « Forcer la suppression » permet de supprimer quand même, avec effacement définitif de l'historique associé (cascade)
-
-## Droits d'accès
-
-- Un membre seul peut s'inscrire ou se désinscrire lui-même
-- L'administrateur ou le gestionnaire ont tous les droits
-
-## Notifications
-
-Deux canaux : **email** et **push (ntfy.sh)**, gérables par chaque utilisateur depuis l'onglet « Notifications ».
-
-**Emails** — chaque type est activable/désactivable indépendamment par le membre (page Notifications) :
-- Ouverture des inscriptions à une séance — *implémenté*
-- Annulation d'une séance à laquelle le membre est inscrit — *implémenté*
-- Désinscription, joker utilisé, solde bas, crédit renouvelé, etc. — *à ajouter au fur et à mesure, même mécanisme*
-
-Le mot de passe oublié (et l'email de définition de mot de passe à la création d'un compte) sont **toujours envoyés**, indépendamment de ces réglages — non désactivables.
-
-**Push (ntfy.sh)** :
-- Canal partagé pour tous les membres : ouverture des inscriptions, annulation de séance
-- Canal **individuel** généré automatiquement pour chaque coach/coach gestionnaire/admin (topic aléatoire non devinable) — chacun choisit, événement par événement, s'il est notifié : inscription, désinscription, promotion automatique depuis la liste d'attente, séance complète. Un coach simple n'est notifié que pour ses propres séances ; un coach gestionnaire/admin peut suivre les séances d'autres coachs de son choix (rien coché = aucun autre coach que lui-même)
-
-## Actualités
-
-Le coach gestionnaire (ou l'admin) peut publier des actualités qui défilent en bandeau façon carrousel (texte centré, pastilles cliquables pour naviguer d'un message à l'autre) : fermeture exceptionnelle, promotion d'une nouvelle offre, etc.
-
-- Chaque actualité a un **texte** (200 caractères max), une **date de début** et une **date de fin** de validité ; elle ne s'affiche qu'entre ces deux dates
-- **Maximum 3 actualités actives en même temps** — la création/modification est refusée au-delà, pour garder le bandeau lisible
-- Un **bouton optionnel** peut renvoyer vers une page de l'app (Calendrier, Offres, Notifications ou Solde), avec un libellé automatique ("Voir le calendrier"...). Pour un visiteur non connecté, le bouton passe d'abord par la connexion puis renvoie vers la page visée
-- Gérées depuis une page dédiée (`/actualites/`, onglet « Actualités » du menu), pas depuis les Préférences (réglages personnels d'un compte)
-- **Affichage à deux endroits** : en bas de la page d'accueil pour les visiteurs non connectés (pas de croix de fermeture), et au-dessus du calendrier hebdomadaire pour les membres/coachs connectés, avec une croix pour fermer le bandeau (mémorisé dans le navigateur, réapparaît si les actualités affichées changent)
+- **Étape manuelle (implémentée)** : quand le crédit d'un membre est insuffisant pour réserver (ou rejoindre la liste d'attente), une carte remplace le bouton habituel et l'invite à régler son prochain carnet par **Wero** auprès du gestionnaire qui réceptionne les paiements (nom et téléphone via `.env`, boutons « Copier »). Le gestionnaire crédite ensuite manuellement le compte (+10/+1 sur la fiche membre). Aucune intégration API Wero (indisponible pour les marchands français)
+- **À faire (chantier 7)** : paiement en ligne (ex. Stripe Checkout), derrière un module activable, sans remplacer le mode manuel pour les clients qui le préfèrent. Le moyen de paiement manuel et ses coordonnées doivent aussi devenir configurables (chantier 3/4), Wero n'étant qu'un défaut
 
 ## Design
 
-Structure et parcours UX (vue calendrier hebdomadaire, navigation par pastilles de jour, cards) inspirés de l'application **peppy.cool**.
+- Structure et parcours UX (calendrier hebdomadaire, pastilles de jour, cards) inspirés de **peppy.cool**
+- **Thème du Garage (défaut)** de style street-workout/graffiti : noir `#201e1f`, vert accent `#80b048`, fond sombre sur toutes les pages avec texte clair, cartes (contenu, formulaires) sur fond clair à texte sombre, icône = monogramme « G » vert sur fond noir
+- Le chantier 1 remplace ces constantes par des réglages de thème (couleurs, logo, icône, nom) pour que chaque client ait sa propre identité sans toucher au code
 
-L'habillage graphique (logo, couleurs) suit en revanche l'identité réelle du Garage, de style street-workout/graffiti :
-- Noir : `#201e1f`
-- Vert accent : `#80b048`
+## Conventions de travail
 
-Fond sombre (noir) par défaut sur toutes les pages, texte clair — les cartes (contenu, formulaires) restent sur fond clair avec texte sombre. Icône de l'application (onglet navigateur, écran d'accueil mobile) : monogramme « G » vert sur fond noir.
+- Répondre et commenter en **français**, accents corrects
+- Lancer la suite de tests avant et après chaque modification : **369 tests verts** = non-régression du Garage
+- Pas de valeur « Garage » codée en dur dans de nouveaux développements : passer par un réglage
+- Ne commiter que sur demande ; ne jamais pousser vers le remote `garage`

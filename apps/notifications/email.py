@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.urls import reverse
@@ -15,11 +16,11 @@ def notifier_ouverture_inscriptions_par_email(seance):
     ).exclude(email='')
     for membre in destinataires:
         send_mail(
-            subject=f"Inscriptions ouvertes : {seance.nom} — Le Garage",
+            subject=f"Inscriptions ouvertes : {seance.nom} — {settings.BRAND['NAME']}",
             message=(
                 f"Bonjour {membre.get_full_name() or membre.username},\n\n"
                 f"Les inscriptions sont ouvertes pour « {seance.nom} » le {debut:%d/%m à %H:%M}.\n\n"
-                "L'équipe Le Garage"
+                + settings.BRAND['TEAM']
             ),
             from_email=None,
             recipient_list=[membre.email],
@@ -30,12 +31,12 @@ def notifier_annulation_seance_par_email(nom_seance, debut_seance, membres):
     destinataires = [m for m in membres if m.email_annulation_seance and m.email]
     for membre in destinataires:
         send_mail(
-            subject=f"Séance annulée : {nom_seance} — Le Garage",
+            subject=f"Séance annulée : {nom_seance} — {settings.BRAND['NAME']}",
             message=(
                 f"Bonjour {membre.get_full_name() or membre.username},\n\n"
                 f"La séance « {nom_seance} » du {debut_seance:%d/%m à %H:%M} a été annulée.\n"
                 "Votre crédit de séance a été restauré.\n\n"
-                "L'équipe Le Garage"
+                + settings.BRAND['TEAM']
             ),
             from_email=None,
             recipient_list=[membre.email],
@@ -51,15 +52,15 @@ def notifier_creation_compte_par_email(user, request):
     protocole = 'https' if request.is_secure() else 'http'
     lien = f"{protocole}://{request.get_host()}{chemin}"
     send_mail(
-        subject="Votre compte Le Garage — définissez votre mot de passe",
+        subject=f"Votre compte {settings.BRAND['NAME']} — définissez votre mot de passe",
         message=(
             f"Bonjour {user.get_full_name() or user.username},\n\n"
-            "Un compte a été créé pour vous sur Le Garage.\n\n"
+            f"Un compte a été créé pour vous sur {settings.BRAND['NAME']}.\n\n"
             f"Identifiant de connexion : {user.username}\n\n"
             "Cliquez sur le lien ci-dessous pour définir votre mot de passe :\n"
             f"{lien}\n\n"
             "Si vous n'êtes pas à l'origine de cette demande, contactez votre coach.\n\n"
-            "L'équipe Le Garage"
+            + settings.BRAND['TEAM']
         ),
         from_email=None,
         recipient_list=[user.email],

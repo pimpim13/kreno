@@ -20,6 +20,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / '.env')
 
+from config.branding import charger_marque  # noqa: E402
+
+BRAND = charger_marque()
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -36,7 +40,7 @@ ALLOWED_HOSTS = [h for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(','
 # Application definition
 
 INSTALLED_APPS = [
-    'apps.accounts.admin_site.GarageAdminConfig',
+    'apps.accounts.admin_site.KrenoAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -83,6 +87,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'apps.actualites.context_processors.actualites_navbar',
+                'config.context_processors.marque',
             ],
         },
     },
@@ -137,7 +142,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+# Le dossier `branding/` (non versionné, optionnel) prime sur `static/` : une instance y dépose
+# ses propres images (logo, icônes, fonds) sous les mêmes chemins pour remplacer celles du Garage.
+STATICFILES_DIRS = [d for d in (BASE_DIR / 'branding', BASE_DIR / 'static') if d.is_dir()]
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 LOGIN_URL = 'accounts:login'
@@ -153,7 +160,7 @@ EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Le Garage <noreply@legarage.fr>')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', f"{BRAND['NAME']} <noreply@legarage.fr>")
 
 # Notifications push via ntfy.sh (https://ntfy.sh).
 # Canal partagé membres (nouvelles séances, annulations). Les coachs/gestionnaires/admin

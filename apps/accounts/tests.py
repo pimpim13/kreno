@@ -3,6 +3,7 @@ import re
 from urllib.parse import urlparse
 
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
@@ -662,7 +663,7 @@ class PasswordResetTests(TestCase):
 
         self.assertRedirects(response, reverse('accounts:password_reset_done'))
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn('Le Garage', mail.outbox[0].subject)
+        self.assertIn(settings.BRAND['NAME'], mail.outbox[0].subject)
         self.assertIn('/comptes/mot-de-passe/reinitialiser/', mail.outbox[0].body)
 
     def test_aucun_email_envoye_si_l_adresse_est_inconnue(self):

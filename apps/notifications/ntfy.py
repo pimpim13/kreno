@@ -14,26 +14,26 @@ def _envoyer(topic, message, titre):
         requests.post(
             f"{settings.NTFY_BASE_URL}/{topic}",
             data=message.encode('utf-8'),
-            headers={'Title': titre},
+            headers={'Title': titre or settings.BRAND['NAME']},
             timeout=5,
         )
     except requests.RequestException:
         logger.warning("Échec de l'envoi de la notification push ntfy.sh", exc_info=True)
 
 
-def notifier_membres(message, titre="Le Garage"):
+def notifier_membres(message, titre=None):
     """Canal membres : nouvelles séances, annulations."""
     _envoyer(settings.NTFY_TOPIC_MEMBRES, message, titre)
 
 
-def notifier_coach(coach, message, titre="Le Garage"):
+def notifier_coach(coach, message, titre=None):
     """Canal individuel d'un coach : sa séance est pleine, désinscription dans une de ses séances."""
     if coach is None:
         return
     _envoyer(coach.topic_ntfy_coach, message, titre)
 
 
-def notifier_evenement_seance(seance, message, champ_preference, titre="Le Garage"):
+def notifier_evenement_seance(seance, message, champ_preference, titre=None):
     """Notifie individuellement chaque compte concerné par un événement de séance, selon ses préférences.
 
     - Le coach animant la séance est notifié s'il a activé `champ_preference` (pour ses propres séances).
